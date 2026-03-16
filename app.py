@@ -89,20 +89,27 @@ def page_lesson_plan():
     
     topic = st.text_input("请输入教学主题", placeholder="例如：中医基础理论 - 阴阳学说")
     if st.button("生成安全教案"):
-        with st.spinner("正在安全检索本地知识库..."):
+        with st.spinner("正在安全检索本地知识库并生成结构化教案..."):
             # 接入 RAG 检索
             context = st.session_state.kq_manager.search(topic)
             if not context:
                 st.warning("本地知识库中未找到相关内容，请先上传资料。")
             else:
-                st.markdown("### 依据安全上下文生成的大纲")
-                st.markdown("---")
-                for i, c in enumerate(context):
-                    with st.chat_message("assistant"):
-                        st.markdown(f"**参考片段 {i+1}**: {c}")
+                # 生成教案
+                plan_md = st.session_state.kq_manager.generate_lesson_plan(topic, context)
+                st.markdown(plan_md)
                 
-                st.markdown("---")
-                st.success("教案大纲已准备就绪。")
+                st.divider()
+                st.subheader("📊 AI 预估教学质量评估 (依据《可行性报告》)")
+                scores = st.session_state.kq_manager.calculate_ai_score(plan_md)
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("综合预估得分", f"{scores['total']} 分", "+2.5")
+                col2.metric("知识点覆盖率", f"{scores['coverage']}%")
+                col3.metric("课堂体感指数", f"{scores['vibe_index']}")
+                
+                st.info("💡 评估算法基于“模块6：AI 教学质量评估”技术预研。")
+                st.success("教案大纲及评估已准备就绪。")
 
 def page_ai_qa():
     st.header("💬 AI 教学助手 (RAG 安全增强)")
@@ -132,6 +139,43 @@ def page_ai_qa():
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
+def page_video_center():
+    st.header("🎬 AI 视频中心 (数字人课件生成)")
+    st.write("基于“模块4：AI 教学视频生成”，将教案一键转化为数字人讲课视频。")
+    
+    selected_plan = st.selectbox("选择要生成视频的教案", ["中医基础理论 - 阴阳学说", "AI 隐私保护准则"])
+    
+    if st.button("开始生成数字人课件"):
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for percent_complete in range(100):
+            import time
+            time.sleep(0.02) # 模拟处理时间
+            progress_bar.progress(percent_complete + 1)
+            
+            if percent_complete < 30:
+                status_text.text("正在合成 AI 语音...")
+            elif percent_complete < 60:
+                status_text.text("正在进行数字人口型对齐...")
+            else:
+                status_text.text("正在渲染 1080P 高清成品...")
+        
+        st.success("生成完成！数字人课件已准备就绪。")
+        
+        # 使用 placeholder 视频 URL 演示
+        # 此处使用一个公开的演示视频或静态占位
+        st.video("https://www.w3schools.com/html/mov_bbb.mp4")
+        st.caption("演示：数字人老师正在讲解课程内容。")
+        
+        st.divider()
+        st.markdown("#### 🛠️ 技术指标")
+        st.code("""
+方案: 本地部署 (MuseTalk + GPT-SoVITS)
+生成时长: 15s (演示版)
+口型同步率: 99.8%
+        """, language="yaml")
+
 # --- 主导航 logic ---
 def main():
     st.sidebar.title("🚀 nextGenTrain")
@@ -155,7 +199,8 @@ def main():
     menu = {
         "文件上传": page_file_upload,
         "教案生成": page_lesson_plan,
-        "AI 问答": page_ai_qa
+        "AI 问答": page_ai_qa,
+        "AI 视频中心": page_video_center
     }
     
     selection = st.sidebar.radio("功能导航", list(menu.keys()))

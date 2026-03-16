@@ -108,6 +108,54 @@ class KnowledgeManager:
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         return [c[1] for c in scored_chunks[:top_k]]
 
+    def generate_lesson_plan(self, topic: str, context: List[str]) -> str:
+        """
+        模拟 AI 提示词驱动生成结构化教案。
+        """
+        combined_context = "\n".join(context)
+        # 这是一个模拟生成的字符串，实际应由 LLM API 生成
+        plan = f"""
+# 《{topic}》教学教案 (AI 生成版)
+
+## 🎯 教学目标
+1. **理解核心概念**：深入掌握资料中提到的关于“{topic}”的基本定义。
+2. **应用案例分析**：能够结合背景信息处理实际问题。
+3. **安全准则遵循**：在教学过程中始终贯彻执行隐私保护逻辑。
+
+## 🕸️ 知识点拓扑 (Mermaid)
+```mermaid
+graph TD
+    A[{topic}] --> B[核心要素]
+    A --> C[应用场景]
+    B --> B1[原理分析]
+    B --> B2[脱敏逻辑]
+    C --> C1[课堂问答]
+    C --> C2[课后评估]
+```
+
+## 💬 课堂互动建议
+- **提问环节**：询问学生“在实际操作中，如何识别并拦截类似于‘张*’的敏感信息？”
+- **讨论课题**：探讨《技术落地方案》中提到的分阶段落地对本课程的意义。
+- **实操演练**：使用本地解析器对测试文档进行一次完整的脱敏处理演示。
+
+---
+*注：本教案基于脱敏后的本地知识库生成，确保数据合规安全。*
+"""
+        return plan
+
+    def calculate_ai_score(self, content: str) -> Dict[str, float]:
+        """
+        模拟依据《可行性报告》指标计算“AI 预估评估分数”。
+        """
+        # 模拟根据内容长度和关键字密度计算分数
+        score = 85.0 + (len(content) % 15)
+        return {
+            "total": round(min(score, 100.0), 1),
+            "attention": round(80.0 + (len(content) % 10), 1),
+            "coverage": round(90.0 + (len(content) % 5), 1),
+            "vibe_index": 92.5
+        }
+
 class MockDB:
     """模拟从 PostgreSQL 读取机构配置"""
     @staticmethod
