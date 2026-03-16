@@ -333,20 +333,6 @@ def main():
     st.session_state.show_interception = show_interception
     
     st.sidebar.divider()
-    # 新增：开发体感看板
-    st.sidebar.subheader("📈 开发体感看板")
-    try:
-        with open("CHOP_LOG.md", "r", encoding="utf-8") as f:
-            log_content = f.read()
-            # 简单提取最新的动作记录
-            if "### 动作记录" in log_content:
-                latest_actions = log_content.split("### 动作记录")[1].split("###")[0].strip()
-                st.sidebar.info(latest_actions[:200] + "...")
-        st.sidebar.success("💡 采用 Vibe Coding，重构效率提升 300%")
-    except Exception:
-        st.sidebar.warning("暂未找到开发日志")
-    
-    st.sidebar.divider()
     
     menu = {
         "文件上传": page_file_upload,
