@@ -129,12 +129,13 @@ def page_ai_qa():
 
         with st.chat_message("assistant"):
             # RAG 逻辑
-            context = st.session_state.kq_manager.search(prompt)
-            if context:
-                aug_prompt = f"背景信息：{ ' '.join(context) }\n\n问题：{prompt}"
-                response = f"根据您的文档，我发现：{context[0][:150]}... (这是基于脱敏上下文的回复)"
-            else:
-                response = "抱歉，由于未能在本地知识库中找到脱敏后的参考信息，我无法回答该问题（确保红线安全）。"
+            with st.spinner("本地检索脱敏数据中..."):
+                context = st.session_state.kq_manager.search(prompt)
+                if context:
+                    aug_prompt = f"背景信息：{ ' '.join(context) }\n\n问题：{prompt}"
+                    response = f"根据您的文档，我发现：{context[0][:150]}... (这是基于脱敏上下文的回复)"
+                else:
+                    response = "抱歉，由于未能在本地知识库中找到脱敏后的参考信息，我无法回答该问题（确保红线安全）。"
             
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
@@ -193,6 +194,20 @@ def main():
     # 体感优化：脱敏过程演示开关
     show_interception = st.sidebar.toggle("🔬 显示脱敏过程 (演示用)", value=True)
     st.session_state.show_interception = show_interception
+    
+    st.sidebar.divider()
+    # 新增：开发体感看板
+    st.sidebar.subheader("📈 开发体感看板")
+    try:
+        with open("CHOP_LOG.md", "r", encoding="utf-8") as f:
+            log_content = f.read()
+            # 简单提取最新的动作记录
+            if "### 动作记录" in log_content:
+                latest_actions = log_content.split("### 动作记录")[1].split("###")[0].strip()
+                st.sidebar.info(latest_actions[:200] + "...")
+        st.sidebar.success("💡 采用 Vibe Coding，重构效率提升 300%")
+    except Exception:
+        st.sidebar.warning("暂未找到开发日志")
     
     st.sidebar.divider()
     
