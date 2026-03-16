@@ -115,8 +115,7 @@ class KnowledgeManager:
                 self._whisper_models = {}
             
             if model_size not in self._whisper_models:
-                with st.spinner(f"正在加载 Whisper {model_size} 模型 (仅首次)..."):
-                    self._whisper_models[model_size] = whisper.load_model(model_size)
+                self._whisper_models[model_size] = whisper.load_model(model_size)
             
             model = self._whisper_models[model_size]
             
