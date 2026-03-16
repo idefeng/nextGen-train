@@ -93,7 +93,7 @@ class KnowledgeManager:
         full_text = file_bytes.decode("utf-8", errors="ignore")
         return self._process_text_content(full_text)
 
-    def process_video(self, file_path: str) -> List[Dict]:
+    def process_video(self, file_path: str, model_size: str = "base") -> List[Dict]:
         """
         解析视频 (音频提取 + ASR) -> 切片 -> 脱敏。
         """
@@ -110,9 +110,19 @@ class KnowledgeManager:
                 video.audio.write_audiofile(audio_temp, logger=None)
             video.close()
             
-            # 2. ASR 语音转文字
-            model = whisper.load_model("tiny") # 使用 tiny 模型提升演示速度
-            result = model.transcribe(audio_temp)
+            # 2. ASR 语音转文字 (使用缓存的模型)
+            if not hasattr(self, "_whisper_models"):
+                self._whisper_models = {}
+            
+            if model_size not in self._whisper_models:
+                with st.spinner(f"正在加载 Whisper {model_size} 模型 (仅首次)..."):
+                    self._whisper_models[model_size] = whisper.load_model(model_size)
+            
+            model = self._whisper_models[model_size]
+            
+            # 增加术语 Prompt 增强
+            initial_prompt = "这是一段关于教育培训、AI重构、隐私脱敏和RAG知识库的技术分享。请准确识别专有名词。"
+            result = model.transcribe(audio_temp, initial_prompt=initial_prompt)
             full_text = result["text"]
             
             return self._process_text_content(full_text)

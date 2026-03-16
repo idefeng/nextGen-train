@@ -105,11 +105,15 @@ def page_file_upload():
                             tfile.write(file_bytes)
                             temp_path = tfile.name
                         
-                        st.write("🎞️ 正在从视频中提取音频轨道...")
+                        st.write(f"🎞️ 正在从视频中提取音频轨道...")
+                        # 获取侧边栏选择的模型精度
+                        asr_model_size = st.session_state.get("asr_precision", "base")
+                        
+                        st.write(f"🎙️ 正在使用 {asr_model_size.upper()} 模型进行 ASR 识别 (增强模式)...")
                         # 实际调用 ASR 逻辑
-                        processed_chunks = st.session_state.kq_manager.process_video(temp_path)
+                        processed_chunks = st.session_state.kq_manager.process_video(temp_path, model_size=asr_model_size)
                         os.remove(temp_path)
-                        st.write("🎙️ 语音转文字 (ASR) 完成，已同步执行隐私拦截。")
+                        st.write("✅ 语音转文字 (ASR) 完成，已同步执行隐私拦截。")
                     elif file_ext == "docx":
                         processed_chunks = st.session_state.kq_manager.process_docx(file_bytes)
                     elif file_ext in ["txt", "md"]:
@@ -272,6 +276,22 @@ def main():
     # 侧边栏展示机构信息 (脱敏展示)
     db = MockDB()
     config = db.get_institution_config()
+    
+    st.sidebar.divider()
+    # ASR 精度优化配置
+    st.sidebar.subheader("⚙️ 演示配置")
+    asr_precision_map = {
+        "快速 (Tiny)": "tiny",
+        "平衡 (Base)": "base",
+        "高精度 (Small)": "small"
+    }
+    asr_selection = st.sidebar.select_slider(
+        "ASR 解析精度",
+        options=list(asr_precision_map.keys()),
+        value="平衡 (Base)",
+        help="精度越高识别越准，但本地解析耗时会相应增加。"
+    )
+    st.session_state.asr_precision = asr_precision_map[asr_selection]
     
     st.sidebar.divider()
     st.sidebar.markdown(f"**机构名称**: {mask_sensitive_info(config['name'])}")
