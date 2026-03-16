@@ -107,3 +107,15 @@ class KnowledgeManager:
         
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         return [c[1] for c in scored_chunks[:top_k]]
+
+class MockDB:
+    """模拟从 PostgreSQL 读取机构配置"""
+    @staticmethod
+    def get_institution_config():
+        return {
+            "name": "博学教育培训中心",
+            "admin_contact": "张三 (13812345678)",
+            "license_id": "EDU-2026-MOCK-001",
+            "region": "华东地区",
+            "status": "Active"
+        }

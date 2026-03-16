@@ -55,19 +55,6 @@ def mask_sensitive_info(text: str) -> str:
             
     return text
 
-# --- Mock 数据层 (Data Layer) ---
-class MockDB:
-    @staticmethod
-    def get_institution_config():
-        """模拟从 PostgreSQL 读取机构配置"""
-        return {
-            "name": "博学教育培训中心",
-            "admin_contact": "张三 (13812345678)",
-            "license_id": "EDU-2026-MOCK-001",
-            "region": "华东地区",
-            "status": "Active"
-        }
-
 # --- 页面逻辑 ---
 
 # --- 业务逻辑重写 (接入 KnowledgeManager) ---
