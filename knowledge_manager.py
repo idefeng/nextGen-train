@@ -66,6 +66,16 @@ class KnowledgeManager:
             length_function=len,
         )
         self.knowledge_base = [] # 模拟向量库，实际应存储在向量数据库中
+        # 初始化术语库，预置行业核心词汇
+        self.terms = ["托育", "婴幼儿", "保育员", "早教", "知识库", "脱敏", "隐私保护"]
+
+    def add_term(self, term: str):
+        if term and term not in self.terms:
+            self.terms.append(term)
+
+    def remove_term(self, term: str):
+        if term in self.terms:
+            self.terms.remove(term)
 
     def process_pdf(self, file_bytes: bytes) -> List[Dict]:
         """
@@ -119,8 +129,14 @@ class KnowledgeManager:
             
             model = self._whisper_models[model_size]
             
-            # 增加术语 Prompt 增强
-            initial_prompt = "这是一段关于教育培训、AI重构、隐私脱敏和RAG知识库的技术分享。请准确识别专有名词。"
+            # 动态构建术语提示词增强 (基于词库)
+            base_prompt = "这是一段关于教育培训、AI重构、隐私脱敏的技术分享。"
+            if self.terms:
+                term_prompt = f"请务必准确识别以下专业术语：{', '.join(self.terms)}。"
+                initial_prompt = base_prompt + term_prompt
+            else:
+                initial_prompt = base_prompt
+                
             result = model.transcribe(audio_temp, initial_prompt=initial_prompt)
             full_text = result["text"]
             

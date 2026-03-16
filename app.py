@@ -268,6 +268,34 @@ def page_knowledge_base_browser():
                     st.caption(f"🛡️ 该片段包含 {len(item['logs'])} 处脱敏拦截操作")
                 st.divider()
 
+def page_term_management():
+    st.header("📚 术语词库管理 (ASR 纠偏增强)")
+    st.write("在此维护行业专业词汇。这些词汇将作为 ASR 解析的语义引导，强制纠正“错别字”（如：托育、婴幼儿）。")
+    
+    # 增加新术语
+    new_term = st.text_input("添加新专业术语", placeholder="输入术语后按回车，例如：分阶段落地")
+    if new_term:
+        st.session_state.kq_manager.add_term(new_term)
+        st.success(f"术语 '{new_term}' 已加入增强词库！")
+
+    st.divider()
+    st.subheader("当前词库内容")
+    terms = st.session_state.kq_manager.terms
+    
+    if not terms:
+        st.info("当前词库为空。")
+    else:
+        # 使用标签化展示
+        cols = st.columns(4)
+        for i, term in enumerate(terms):
+            with cols[i % 4]:
+                if st.button(f"🗑️ {term}", key=f"term_{i}", help="点击删除"):
+                    st.session_state.kq_manager.remove_term(term)
+                    st.rerun()
+    
+    st.divider()
+    st.info("💡 提示：词库越精准，Whisper 模型在处理专有名词时的纠错能力越强。")
+
 # --- 主导航 logic ---
 def main():
     st.sidebar.title("🚀 nextGenTrain")
@@ -283,7 +311,9 @@ def main():
     asr_precision_map = {
         "快速 (Tiny)": "tiny",
         "平衡 (Base)": "base",
-        "高精度 (Small)": "small"
+        "高精度 (Small)": "small",
+        "专业 (Medium)": "medium",
+        "极致 (Turbo)": "turbo"
     }
     asr_selection = st.sidebar.select_slider(
         "ASR 解析精度",
@@ -323,7 +353,8 @@ def main():
         "教案生成": page_lesson_plan,
         "AI 问答": page_ai_qa,
         "AI 视频中心": page_video_center,
-        "知识库概览": page_knowledge_base_browser
+        "知识库概览": page_knowledge_base_browser,
+        "术语词库管理": page_term_management
     }
     
     selection = st.sidebar.radio("功能导航", list(menu.keys()))
