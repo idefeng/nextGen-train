@@ -60,23 +60,73 @@ def mask_sensitive_info(text: str) -> str:
 # --- 业务逻辑重写 (接入 KnowledgeManager) ---
 
 def page_file_upload():
-    st.header("📂 教学资料上传 (隐私管控版)")
-    st.info("系统在解析文档后，会自动通过本地“隐私拦截器”进行脱敏，确保敏感数据不离境。")
+    st.header("📂 多模态教学资料上传 (隐私管控版)")
+    st.info("支持 PDF, Word, TXT, MD 及视频 (MP4, MOV) 格式。所有内容在入库前均经过本地脱敏。")
     
     show_interception = st.session_state.get("show_interception", False)
     
-    uploaded_file = st.file_uploader("选择 PDF 教学素材", type=["pdf"])
+    # 扩展支持的文件类型
+    uploaded_file = st.file_uploader("选择教学素材", type=["pdf", "docx", "txt", "md", "mp4", "mov"])
+    
     if uploaded_file:
+        file_ext = uploaded_file.name.split(".")[-1].lower()
+        
+        # 多模态预览窗
+        st.divider()
+        st.subheader("👁️ 内容预览")
+        if file_ext in ["mp4", "mov"]:
+            st.video(uploaded_file)
+            st.caption(f"🎬 视频预览: {uploaded_file.name}")
+        else:
+            # 预览文档内容 (前 500 字)
+            preview_bytes = uploaded_file.getvalue()
+            if file_ext == "pdf":
+                # PDF 预览简化处理
+                st.write("📄 PDF 文档已就绪，准备解析...")
+            else:
+                try:
+                    preview_text = preview_bytes.decode("utf-8", errors="ignore")[:500]
+                    st.text_area("文档预览", preview_text, height=150)
+                except Exception:
+                    st.write("📄 文档已收录。")
+
         if st.button("开始 AI 安全解析"):
-            with st.spinner("解析并拦截敏感信息中..."):
-                file_bytes = uploaded_file.read()
-                processed_chunks = st.session_state.kq_manager.process_pdf(file_bytes)
+            import tempfile
+            import os
+            
+            with st.status("正在进行多模态解析...", expanded=True) as status:
+                st.write(f"正在读取 {file_ext.upper()} 文件...")
+                file_bytes = uploaded_file.getvalue()
                 
-                st.success(f"解析完成！共切分为 {len(processed_chunks)} 个安全片段并存入本地知识库。")
-                
-                if show_interception:
+                try:
+                    if file_ext in ["mp4", "mov"]:
+                        # 视频处理需要文件路径
+                        with tempfile.NamedTemporaryFile(suffix=f".{file_ext}", delete=False) as tfile:
+                            tfile.write(file_bytes)
+                            temp_path = tfile.name
+                        
+                        st.write("🎞️ 正在从视频中提取音频轨道...")
+                        # 实际调用 ASR 逻辑
+                        processed_chunks = st.session_state.kq_manager.process_video(temp_path)
+                        os.remove(temp_path)
+                        st.write("🎙️ 语音转文字 (ASR) 完成，已同步执行隐私拦截。")
+                    elif file_ext == "docx":
+                        processed_chunks = st.session_state.kq_manager.process_docx(file_bytes)
+                    elif file_ext in ["txt", "md"]:
+                        processed_chunks = st.session_state.kq_manager.process_text(file_bytes)
+                    else:
+                        processed_chunks = st.session_state.kq_manager.process_pdf(file_bytes)
+                    
+                    status.update(label="✅ 多模态数据安全解析完成！", state="complete", expanded=False)
+                    st.success(f"解析成功！共提取 {len(processed_chunks)} 个安全片段并存入本地知识库。")
+                except Exception as e:
+                    status.update(label="❌ 解析失败", state="error")
+                    st.error(f"解析过程中出现错误: {str(e)}")
+                    processed_chunks = []
+
+                if show_interception and processed_chunks:
                     st.subheader("🛡️ 隐私脱敏过程监控 (演示模式)")
-                    for i, chunk in enumerate(processed_chunks[:5]): # 仅展示前5个
+                    for i, chunk in enumerate(processed_chunks[:5]):
                         if chunk["logs"]:
                             with st.expander(f"片段 #{i+1} 脱敏详情"):
                                 st.text(f"原始文本推测: {chunk['original'][:100]}...")

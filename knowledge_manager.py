@@ -75,7 +75,55 @@ class KnowledgeManager:
         full_text = ""
         for page in reader.pages:
             full_text += page.extract_text() + "\n"
-        
+        return self._process_text_content(full_text)
+
+    def process_docx(self, file_bytes: bytes) -> List[Dict]:
+        """
+        解析 Docx -> 切片 -> 脱敏。
+        """
+        import docx
+        doc = docx.Document(io.BytesIO(file_bytes))
+        full_text = "\n".join([para.text for para in doc.paragraphs])
+        return self._process_text_content(full_text)
+
+    def process_text(self, file_bytes: bytes) -> List[Dict]:
+        """
+        解析 TXT/MD -> 切片 -> 脱敏。
+        """
+        full_text = file_bytes.decode("utf-8", errors="ignore")
+        return self._process_text_content(full_text)
+
+    def process_video(self, file_path: str) -> List[Dict]:
+        """
+        解析视频 (音频提取 + ASR) -> 切片 -> 脱敏。
+        """
+        import os
+        from moviepy.editor import VideoFileClip
+        import whisper
+        import tempfile
+
+        # 1. 提取音频
+        audio_temp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False).name
+        try:
+            video = VideoFileClip(file_path)
+            if video.audio:
+                video.audio.write_audiofile(audio_temp, logger=None)
+            video.close()
+            
+            # 2. ASR 语音转文字
+            model = whisper.load_model("tiny") # 使用 tiny 模型提升演示速度
+            result = model.transcribe(audio_temp)
+            full_text = result["text"]
+            
+            return self._process_text_content(full_text)
+        finally:
+            if os.path.exists(audio_temp):
+                os.remove(audio_temp)
+
+    def _process_text_content(self, full_text: str) -> List[Dict]:
+        """
+        统一的切片与脱敏流。
+        """
         # 1. 文本切片
         chunks = self.splitter.split_text(full_text)
         
