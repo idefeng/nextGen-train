@@ -98,7 +98,7 @@ class KnowledgeManager:
         解析视频 (音频提取 + ASR) -> 切片 -> 脱敏。
         """
         import os
-        from moviepy.editor import VideoFileClip
+        from moviepy import VideoFileClip
         import whisper
         import tempfile
 
