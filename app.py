@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
 import re
+from knowledge_manager import KnowledgeManager, MockDB
 
-# --- 配置与样式 ---
+# --- 全局状态初始化 ---
+if "kq_manager" not in st.session_state:
+    db = MockDB()
+    config = db.get_institution_config()
+    st.session_state.kq_manager = KnowledgeManager(institution_name=config["name"])
 st.set_page_config(
     page_title="nextGenTrain MVP",
     page_icon="🎓",
@@ -65,31 +70,56 @@ class MockDB:
 
 # --- 页面逻辑 ---
 
+# --- 业务逻辑重写 (接入 KnowledgeManager) ---
+
 def page_file_upload():
-    st.header("📂 教学资料上传")
-    st.info("请上传 PDF、Word 或 PPT 格式的教学素材，系统将自动解析知识点。")
-    uploaded_file = st.file_uploader("选择文件", type=["pdf", "docx", "pptx"])
+    st.header("📂 教学资料上传 (隐私管控版)")
+    st.info("系统在解析文档后，会自动通过本地“隐私拦截器”进行脱敏，确保敏感数据不离境。")
+    
+    show_interception = st.session_state.get("show_interception", False)
+    
+    uploaded_file = st.file_uploader("选择 PDF 教学素材", type=["pdf"])
     if uploaded_file:
-        st.success(f"成功接收文件: {uploaded_file.name}")
-        st.button("开始 AI 解析")
+        if st.button("开始 AI 安全解析"):
+            with st.spinner("解析并拦截敏感信息中..."):
+                file_bytes = uploaded_file.read()
+                processed_chunks = st.session_state.kq_manager.process_pdf(file_bytes)
+                
+                st.success(f"解析完成！共切分为 {len(processed_chunks)} 个安全片段并存入本地知识库。")
+                
+                if show_interception:
+                    st.subheader("🛡️ 隐私脱敏过程监控 (演示模式)")
+                    for i, chunk in enumerate(processed_chunks[:5]): # 仅展示前5个
+                        if chunk["logs"]:
+                            with st.expander(f"片段 #{i+1} 脱敏详情"):
+                                st.text(f"原始文本推测: {chunk['original'][:100]}...")
+                                st.json(chunk["logs"])
+                                st.info(f"脱敏后文本: {chunk['content'][:100]}...")
 
 def page_lesson_plan():
     st.header("📝 教案自动生成")
-    st.write("基于知识库内容，快速生成符合教学大纲的教案。")
+    st.write("基于**已脱敏**的本地知识库内容，安全生成教案大纲。")
     
     topic = st.text_input("请输入教学主题", placeholder="例如：中医基础理论 - 阴阳学说")
-    if st.button("生成教案大纲"):
-        with st.spinner("正在检索知识库并生成大纲..."):
-            # 模拟生成逻辑
-            st.markdown("### 课程大纲 (草稿)")
-            st.markdown("1. **教学目标**：掌握阴阳的基本属性及其关系。")
-            st.markdown("2. **核心知识点**：对立、互根、消长、转化。")
-            st.markdown("3. **教学时长**：45 分钟。")
-            st.warning("注：生成的教学内容需经教研员终审（遵守内容红线原则）。")
+    if st.button("生成安全教案"):
+        with st.spinner("正在安全检索本地知识库..."):
+            # 接入 RAG 检索
+            context = st.session_state.kq_manager.search(topic)
+            if not context:
+                st.warning("本地知识库中未找到相关内容，请先上传资料。")
+            else:
+                st.markdown("### 依据安全上下文生成的大纲")
+                st.markdown("---")
+                for i, c in enumerate(context):
+                    with st.chat_message("assistant"):
+                        st.markdown(f"**参考片段 {i+1}**: {c}")
+                
+                st.markdown("---")
+                st.success("教案大纲已准备就绪。")
 
 def page_ai_qa():
-    st.header("💬 AI 教学助手")
-    st.write("针对教学过程中的细节，与 AI 进行深度问答。")
+    st.header("💬 AI 教学助手 (RAG 安全增强)")
+    st.write("您的提问将经过本地检索，仅将脱敏后的上下文发送给大模型。")
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -104,7 +134,14 @@ def page_ai_qa():
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            response = f"这是关于 '{prompt}' 的模拟回复（内测阶段）。"
+            # RAG 逻辑
+            context = st.session_state.kq_manager.search(prompt)
+            if context:
+                aug_prompt = f"背景信息：{ ' '.join(context) }\n\n问题：{prompt}"
+                response = f"根据您的文档，我发现：{context[0][:150]}... (这是基于脱敏上下文的回复)"
+            else:
+                response = "抱歉，由于未能在本地知识库中找到脱敏后的参考信息，我无法回答该问题（确保红线安全）。"
+            
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
@@ -120,6 +157,12 @@ def main():
     st.sidebar.divider()
     st.sidebar.markdown(f"**机构名称**: {mask_sensitive_info(config['name'])}")
     st.sidebar.markdown(f"**管理员**: {mask_sensitive_info(config['admin_contact'])}")
+    
+    st.sidebar.divider()
+    # 体感优化：脱敏过程演示开关
+    show_interception = st.sidebar.toggle("🔬 显示脱敏过程 (演示用)", value=True)
+    st.session_state.show_interception = show_interception
+    
     st.sidebar.divider()
     
     menu = {
