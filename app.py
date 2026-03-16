@@ -124,14 +124,33 @@ def page_file_upload():
                     st.error(f"解析过程中出现错误: {str(e)}")
                     processed_chunks = []
 
-                if show_interception and processed_chunks:
-                    st.subheader("🛡️ 隐私脱敏过程监控 (演示模式)")
-                    for i, chunk in enumerate(processed_chunks[:5]):
-                        if chunk["logs"]:
-                            with st.expander(f"片段 #{i+1} 脱敏详情"):
-                                st.text(f"原始文本推测: {chunk['original'][:100]}...")
-                                st.json(chunk["logs"])
-                                st.info(f"脱敏后文本: {chunk['content'][:100]}...")
+                if processed_chunks:
+                    st.divider()
+                    st.subheader("📝 完整解析内容预览")
+                    
+                    # 组合完整文本用于展示
+                    full_content = "\n".join([c["content"] for c in processed_chunks])
+                    st.text_area("解析/转写后的安全文本", full_content, height=250)
+                    
+                    if show_interception:
+                        st.subheader("🛡️ 隐私脱敏过程监控 (演示模式)")
+                        intercept_count = sum(len(c["logs"]) for c in processed_chunks)
+                        if intercept_count > 0:
+                            st.warning(f"共检测并拦截了 {intercept_count} 处敏感信息。")
+                        else:
+                            st.success("未在当前内容中发现敏感信息，数据 100% 安全。")
+                            
+                        for i, chunk in enumerate(processed_chunks):
+                            if chunk["logs"]:
+                                with st.expander(f"片段 #{i+1} 脱敏详情"):
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.markdown("**原始内容片段**")
+                                        st.caption(chunk["original"])
+                                    with col2:
+                                        st.markdown("**脱敏后片段**")
+                                        st.code(chunk["content"])
+                                    st.json(chunk["logs"])
 
 def page_lesson_plan():
     st.header("📝 教案自动生成")
@@ -227,6 +246,24 @@ def page_video_center():
 口型同步率: 99.8%
         """, language="yaml")
 
+def page_knowledge_base_browser():
+    st.header("🗄️ 知识库概览 (隔离区数据)")
+    st.write("展示当前已从本地多模态资料中提取并脱敏的安全知识资产。")
+    
+    kb = st.session_state.kq_manager.knowledge_base
+    if not kb:
+        st.warning("知识库当前为空，请前往“文件上传”页面添加教学素材。")
+    else:
+        st.metric("已收录安全片段", len(kb))
+        
+        for i, item in enumerate(kb):
+            with st.container(border=True):
+                st.markdown(f"**安全片段 #{i+1}**")
+                st.text(item["content"])
+                if item["logs"]:
+                    st.caption(f"🛡️ 该片段包含 {len(item['logs'])} 处脱敏拦截操作")
+                st.divider()
+
 # --- 主导航 logic ---
 def main():
     st.sidebar.title("🚀 nextGenTrain")
@@ -265,7 +302,8 @@ def main():
         "文件上传": page_file_upload,
         "教案生成": page_lesson_plan,
         "AI 问答": page_ai_qa,
-        "AI 视频中心": page_video_center
+        "AI 视频中心": page_video_center,
+        "知识库概览": page_knowledge_base_browser
     }
     
     selection = st.sidebar.radio("功能导航", list(menu.keys()))
